@@ -30,10 +30,12 @@ static uintptr_t dtb_output()
    * address. The kernel's virtual mapping begins at its load address,
    * thus mandating device-tree is in physical memory after the kernel.
    */
-  //uintptr_t end = kernel_end ? ROUNDUP((uintptr_t)kernel_end, 2*MEGAPAGE_SIZE)
-  //: (uintptr_t)PAYLOAD_END;
-  //return end;
+#if (MEM_START==0x200000)
   return 0x2000000;
+#else
+  return kernel_end ? ROUNDUP((uintptr_t)kernel_end, 2*MEGAPAGE_SIZE) : (uintptr_t)PAYLOAD_END;
+#endif
+
 }
 
 void putbuf(char* buf);
