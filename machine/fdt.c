@@ -7,6 +7,10 @@
 #include "fdt.h"
 #include "mtrap.h"
 
+void putbuf(char* buf);
+int snprintf(char* out, size_t n, const char* s, ...);
+
+
 static inline uint32_t bswap(uint32_t x)
 {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
@@ -97,7 +101,9 @@ void fdt_scan(uintptr_t fdt, const struct fdt_cb *cb)
 
   // Only process FDT that we understand
   if (bswap(header->magic) != FDT_MAGIC ||
-      bswap(header->last_comp_version) > FDT_VERSION) return;
+      bswap(header->last_comp_version) > FDT_VERSION) {
+    return;
+  }
 
   const char *strings = (const char *)(fdt + bswap(header->off_dt_strings));
   uint32_t *lex = (uint32_t *)(fdt + bswap(header->off_dt_struct));
@@ -180,24 +186,38 @@ static void mem_done(const struct fdt_scan_node *node, void *extra)
   const uint32_t *value = scan->reg_value;
   const uint32_t *end = value + scan->reg_len/4;
   uintptr_t self = (uintptr_t)mem_done;
-
-  if (!scan->memory) return;
+  char buf[80];
+  
+  if (!scan->memory) {
+    //putbuf("scan->memory is null\n");
+    return;
+  }
   assert (scan->reg_value && scan->reg_len % 4 == 0);
 
+  
   while (end - value > 0) {
     uint64_t base, size;
     value = fdt_get_address(node->parent, value, &base);
     value = fdt_get_size   (node->parent, value, &size);
+    
+    //snprintf(buf, 80, "base %lx\n", base);
+    //putbuf(buf);
+    //snprintf(buf, 80, "size %lx\n", size);
+    //putbuf(buf);
+    //snprintf(buf, 80, "self %lx\n", self);
+    //putbuf(buf);    
+    
     if (base <= self && self <= base + size) { mem_size = size; }
   }
   assert (end == value);
 }
 
+
 void query_mem(uintptr_t fdt)
 {
+  char buf[80];
   struct fdt_cb cb;
   struct mem_scan scan;
-
   memset(&cb, 0, sizeof(cb));
   cb.open = mem_open;
   cb.prop = mem_prop;
@@ -205,6 +225,8 @@ void query_mem(uintptr_t fdt)
   cb.extra = &scan;
 
   mem_size = 0;
+  snprintf(buf, 80, "fdt ptr = %lx\n", fdt);
+  putbuf(buf);
   fdt_scan(fdt, &cb);
   assert (mem_size > 0);
 }

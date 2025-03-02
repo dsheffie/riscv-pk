@@ -24,15 +24,7 @@ void __attribute__((noreturn)) bad_trap(uintptr_t* regs, uintptr_t dummy, uintpt
 
 static uintptr_t mcall_console_putchar(uint8_t ch)
 {
-  if (uart) {
-    uart_putchar(ch);
-  } else if (uart16550) {
-    uart16550_putchar(ch);
-  } else if (uart_litex) {
-    uart_litex_putchar(ch);
-  } else if (htif) {
-    htif_console_putchar(ch);
-  }
+  htif_console_putchar(ch);
   return 0;
 }
 

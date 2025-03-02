@@ -13,6 +13,7 @@
 #include "htif.h"
 #include <string.h>
 #include <limits.h>
+#include <stdio.h>
 
 uintptr_t mem_size;
 volatile uint64_t* mtime;
@@ -184,20 +185,47 @@ static void wake_harts()
       *OTHER_HLS(hart)->ipi = 1; // wakeup the hart
 }
 
+#define __ASM_STR(x)    #x
+
+#define csr_read(csr)                                           \
+({                                                              \
+        register unsigned long __v;                             \
+        __asm__ __volatile__ ("csrr %0, " __ASM_STR(csr)        \
+                              : "=r" (__v) :                    \
+                              : "memory");                      \
+        __v;                                                    \
+})
+
+
+#define csr_write(csr, val)                                     \
+({                                                              \
+        unsigned long __v = (unsigned long)(val);               \
+        __asm__ __volatile__ ("csrw " __ASM_STR(csr) ", %0"     \
+                              : : "rK" (__v)                    \
+                              : "memory");                      \
+})
+
+void putbuf(char* buf) {
+  char *p = buf;
+  while(*p) {
+    while(csr_read(0xc03) != 0) {}
+    csr_write(0xc03, *p);
+    p++;
+  }
+}
+
+
 void init_first_hart(uintptr_t hartid, uintptr_t dtb)
 {
-  // Confirm console as early as possible
   query_uart(dtb);
   query_uart16550(dtb);
   query_uart_litex(dtb);
   query_htif(dtb);
-
   hart_init();
   hls_init(0); // this might get called again from parse_config_string
 
   // Find the power button early as well so die() works
   query_finisher(dtb);
-
   query_mem(dtb);
   query_harts(dtb);
   query_clint(dtb);
@@ -245,6 +273,11 @@ void enter_supervisor_mode(void (*fn)(uintptr_t), uintptr_t arg0, uintptr_t arg1
   uintptr_t *p_fcsr = (uintptr_t*)(MACHINE_STACK_TOP() - MENTRY_FRAME_SIZE); // the x0's save slot
   *p_fcsr = 0;
 #endif
+
+  char buf[80];
+  snprintf(buf,80,"fn = %p\n", (void*)fn);
+  putbuf(buf);
+  
   write_csr(mepc, fn);
 
   register uintptr_t a0 asm ("a0") = arg0;

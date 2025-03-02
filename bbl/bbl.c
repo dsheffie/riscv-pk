@@ -30,15 +30,25 @@ static uintptr_t dtb_output()
    * address. The kernel's virtual mapping begins at its load address,
    * thus mandating device-tree is in physical memory after the kernel.
    */
-  uintptr_t end = kernel_end ? ROUNDUP((uintptr_t)kernel_end, MEGAPAGE_SIZE)
-                             : (uintptr_t)PAYLOAD_END;
-  return end;
+  //uintptr_t end = kernel_end ? ROUNDUP((uintptr_t)kernel_end, 2*MEGAPAGE_SIZE)
+  //: (uintptr_t)PAYLOAD_END;
+  //return end;
+  return 0x2000000;
 }
+
+void putbuf(char* buf);
+int snprintf(char* out, size_t n, const char* s, ...);
 
 static void filter_dtb(uintptr_t source)
 {
+  char buf[80];
   uintptr_t dest = dtb_output();
   uint32_t size = fdt_size(source);
+  snprintf(buf, 80, "fdt pa %lx\n", dest);
+  putbuf(buf);
+  snprintf(buf, 80, "fdt sz %d\n", (int)size);
+  putbuf(buf);
+  
   memcpy((void*)dest, (void*)source, size);
 
 #ifndef CUSTOM_DTS
@@ -125,9 +135,9 @@ void boot_other_hart(uintptr_t unused __attribute__((unused)))
 void boot_loader(uintptr_t dtb)
 {
   filter_dtb(dtb);
-#ifdef PK_ENABLE_LOGO
+  //#ifdef PK_ENABLE_LOGO
   print_logo();
-#endif
+  //#endif
 #ifdef PK_PRINT_DEVICE_TREE
   fdt_print(dtb_output());
 #endif

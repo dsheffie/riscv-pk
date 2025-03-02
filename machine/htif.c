@@ -89,21 +89,34 @@ void htif_syscall(uintptr_t arg)
   do_tohost_fromhost(0, 0, arg);
 }
 
+
+#define __ASM_STR(x)    #x
+
+#define csr_read(csr)                                           \
+({                                                              \
+        register unsigned long __v;                             \
+        __asm__ __volatile__ ("csrr %0, " __ASM_STR(csr)        \
+                              : "=r" (__v) :                    \
+                              : "memory");                      \
+        __v;                                                    \
+})
+
+#define csr_write(csr, val)                                     \
+({                                                              \
+        unsigned long __v = (unsigned long)(val);               \
+        __asm__ __volatile__ ("csrw " __ASM_STR(csr) ", %0"     \
+                              : : "rK" (__v)                    \
+                              : "memory");                      \
+})
+
 void htif_console_putchar(uint8_t ch)
 {
-#if __riscv_xlen == 32
-  // HTIF devices are not supported on RV32, so proxy a write system call
-  volatile uint64_t magic_mem[8];
-  magic_mem[0] = SYS_write;
-  magic_mem[1] = 1;
-  magic_mem[2] = (uintptr_t)&ch;
-  magic_mem[3] = 1;
-  do_tohost_fromhost(0, 0, (uintptr_t)magic_mem);
-#else
+
   spinlock_lock(&htif_lock);
-    __set_tohost(1, 1, ch);
+  while(csr_read(0xc03) != 0) {}
+  csr_write(0xc03, ch);  
   spinlock_unlock(&htif_lock);
-#endif
+
 }
 
 void htif_poweroff()
