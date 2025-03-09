@@ -20,6 +20,11 @@ extern char _payload_start, _payload_end; /* internal payload */
 static const void* entry_point;
 long disabled_hart_mask;
 
+void putbuf(char* buf);
+int snprintf(char* out, size_t n, const char* s, ...);
+
+#define DTB_ALIGN ((1UL<<26))
+
 static uintptr_t dtb_output()
 {
   /*
@@ -31,15 +36,13 @@ static uintptr_t dtb_output()
    * thus mandating device-tree is in physical memory after the kernel.
    */
 #if (MEM_START==0x200000)
-  return 0x2000000;
+  return (((uintptr_t)kernel_end + DTB_ALIGN - 1)/DTB_ALIGN)*DTB_ALIGN;
 #else
   return kernel_end ? ROUNDUP((uintptr_t)kernel_end, 2*MEGAPAGE_SIZE) : (uintptr_t)PAYLOAD_END;
 #endif
 
 }
 
-void putbuf(char* buf);
-int snprintf(char* out, size_t n, const char* s, ...);
 
 static void filter_dtb(uintptr_t source)
 {
